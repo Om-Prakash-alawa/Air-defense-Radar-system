@@ -1,0 +1,98 @@
+import serial
+import tkinter as tk
+import math
+import time
+
+# ---------------------------
+PORT = "COM3"  # your COM
+BAUD = 115200
+# ---------------------------
+
+ser = serial.Serial(PORT, BAUD, timeout=0.1)
+
+win = tk.Tk()
+win.title("Air Defence Radar System")
+win.geometry("700x700")
+win.configure(bg="black")
+
+canvas = tk.Canvas(win, width=600, height=600, bg="black", highlightthickness=0)
+canvas.pack(pady=10)
+
+# Labels position
+angle_text = tk.Label(win, text="Angle: --°", font=("Arial", 16), fg="cyan", bg="black")
+angle_text.place(x=10, y=10)
+distance_text = tk.Label(win, text="Distance: -- cm", font=("Arial", 16), fg="yellow", bg="black")
+distance_text.place(x=10, y=560)
+status_text = tk.Label(win, text="Status: SAFE", font=("Arial", 18), fg="lime", bg="black")
+status_text.place(x=420, y=10)
+missile_label = tk.Label(win, text="", font=("Arial", 18, "bold"), fg="red", bg="black")
+missile_label.place(x=420, y=560)
+
+last_missile_time = 0
+center_x = 300
+center_y = 300
+radius = 280
+
+# Draw radar circles
+for r in [280, 200, 120, 40]:
+    canvas.create_oval(center_x - r, center_y - r, center_x + r, center_y + r, outline="green")
+
+
+def update_radar():
+    global last_missile_time
+    try:
+        while ser.in_waiting:
+            raw = ser.readline()
+            try:
+                raw = raw.decode('utf-8').strip()
+            except:
+                raw = ""
+
+            # Missile launch detect
+            if "MISSILE_LAUNCH" in raw:
+                missile_label.config(text="🚀 Missile Launched!")
+                last_missile_time = time.time()
+                status_text.config(text="Status: TARGET DETECTED!", fg="red")
+
+            # Angle / Distance
+            elif raw.startswith("Angle"):
+                parts = raw.replace("°", "").replace("cm", "").split("|")
+                angle = int(parts[0].split(":")[1])
+                dist = int(parts[1].split(":")[1])
+
+                angle_text.config(text=f"Angle: {angle}°")
+                distance_text.config(text=f"Distance: {dist} cm")
+
+                canvas.delete("line")
+                canvas.delete("dot")
+
+                rad = math.radians(angle)
+                dist_scaled = min(dist * 5, radius)
+                x = center_x + dist_scaled * math.cos(rad)
+                y = center_y - dist_scaled * math.sin(rad)
+
+                # Radar sweep line
+                canvas.create_line(center_x, center_y, x, y, fill="lime", width=2, tags="line")
+
+                # Obstacle red dot
+                if dist > 0 and dist <= 15:
+                    canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill="red", tags="dot")
+                    status_text.config(text="Status: TARGET DETECTED!", fg="red")
+                    # Also trigger missile label for 1 sec
+                    missile_label.config(text="🚀 Missile Launched!")
+                    last_missile_time = time.time()
+                else:
+                    status_text.config(text="Status: SAFE", fg="lime")
+
+    except:
+        pass
+
+    # Hide missile after 1 second
+    if time.time() - last_missile_time > 1:
+        missile_label.config(text="")
+
+    win.after(20, update_radar)
+
+
+update_radar()
+win.mainloop()
