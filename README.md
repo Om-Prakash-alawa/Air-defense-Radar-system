@@ -1,1 +1,2 @@
 # Air-defense-Radar-system
+This Air Defense Radar System also supports Blynk IoT integration, enabling live monitoring from a smartphone. Users can view real-time distance values, servo angle, object presence status, and a simulated Missile Launch Alert through the Blynk app. When an object is detected within a critical threshold, the system simulates a “missile launch” response for demonstration purposes, showcasing how automated defense systems react to threats.
